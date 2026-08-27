@@ -77,19 +77,18 @@
 
 class wireframeDisplay : public MPxLocatorNode {
    public:
-    // wireframeDisplay(wireframeDisplayData& d)
-    //	: data(d) {};
     wireframeDisplay();
     virtual ~wireframeDisplay();
 
     virtual MStatus compute(const MPlug& plug, MDataBlock& data);
-    virtual void wireframeDisplay::postConstructor();
+    virtual void postConstructor();
 
-    virtual void draw(M3dView& view, const MDagPath& path, M3dView::DisplayStyle style,
-                      M3dView::DisplayStatus status);
-
-    // virtual MStatus         setDependentsDirty(const MPlug& dirty_plug, MPlugArray&
-    // affected_plugs);
+#ifdef MAYA_LEGACY_DISPLAY
+    virtual void draw(
+        M3dView& view, const MDagPath& path, M3dView::DisplayStyle style,
+        M3dView::DisplayStatus status
+    );
+#endif
 
     virtual bool isBounded() const;
     virtual MBoundingBox boundingBox() const;
@@ -100,7 +99,6 @@ class wireframeDisplay : public MPxLocatorNode {
     static MStatus initialize();
 
     static MObject _inMesh;
-    // static  MObject         _inputColor;
     static MObject _inputAlpha;
     static MObject _lineWidth;
     static MObject _enableSmooth;
@@ -115,8 +113,6 @@ class wireframeDisplay : public MPxLocatorNode {
    private:
     MObject _self;
     bool _update_attrs;
-
-    // wireframeDisplayData&      data;
 };
 
 //---------------------------------------------------------------------------
@@ -132,8 +128,13 @@ class wireframeDisplayData : public MUserData {
     MIntArray edgeVerticesIndices;
 
    public:
-    wireframeDisplayData() : MUserData(false){};  // don't delete after draw
-    virtual ~wireframeDisplayData(){};
+    wireframeDisplayData()
+#if MAYA_API_VERSION < 20230000
+        : MUserData(false)  // don't delete after draw
+#endif
+    {
+    }
+    virtual ~wireframeDisplayData() {};
 
     virtual void get(const MObject&);
     virtual void getPlugs(const MObject&, bool getCol);
@@ -164,16 +165,18 @@ class wireframeDisplayDrawOverride : public MHWRender::MPxDrawOverride {
 
     virtual MBoundingBox boundingBox(const MDagPath& objPath, const MDagPath& cameraPath) const;
 
-    virtual MUserData* prepareForDraw(const MDagPath& objPath, const MDagPath& cameraPath,
-                                      const MHWRender::MFrameContext& frameContext,
-                                      MUserData* oldData);
+    virtual MUserData* prepareForDraw(
+        const MDagPath& objPath, const MDagPath& cameraPath,
+        const MHWRender::MFrameContext& frameContext, MUserData* oldData
+    );
 
     virtual bool hasUIDrawables() const { return true; }
     virtual bool isTransparent() const { return true; }
 
-    virtual void addUIDrawables(const MDagPath& objPath, MHWRender::MUIDrawManager& drawManager,
-                                const MHWRender::MFrameContext& frameContext,
-                                const MUserData* data);
+    virtual void addUIDrawables(
+        const MDagPath& objPath, MHWRender::MUIDrawManager& drawManager,
+        const MHWRender::MFrameContext& frameContext, const MUserData* data
+    );
 
     virtual bool traceCallSequence() const {
         // Return true if internal tracing is desired.
