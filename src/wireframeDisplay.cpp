@@ -14,7 +14,6 @@
 //---------------------------------------------------------------------------
 
 MObject wireframeDisplay::_inMesh;
-// MObject wireframeDisplay::_inputColor;
 MObject wireframeDisplay::_inputAlpha;
 MObject wireframeDisplay::_lineWidth;
 MObject wireframeDisplay::_enableSmooth;
@@ -40,22 +39,7 @@ void wireframeDisplay::postConstructor() {
     _update_attrs = true;
     MMatrix _transformMatrix;
 }
-/*
-MStatus wireframeDisplay::setDependentsDirty(const MPlug& dirty_plug, MPlugArray& affected_plugs) {
-        MString plug_name_MString = dirty_plug.partialName();
-        std::string plug_name = plug_name_MString.asChar();
-        if( (plug_name == "lpx")|| (plug_name == "lpy")|| (plug_name == "lpz") ){
-                _update_attrs = true;
-        }
-        if ((plug_name == "lsx") || (plug_name == "lsy") || (plug_name == "lsz")) {
-                _update_attrs = true;
-        }
-        if ((dirty_plug == _rot) || (dirty_plug == _rotX) || (dirty_plug == _rotY) || (dirty_plug ==
-_rotZ)) { _update_attrs = true;
-        }
-        return MS::kSuccess;
-}
-*/
+
 void wireframeDisplayData::getPlugs(const MObject& node, bool getCol) {
     MStatus status;
 
@@ -86,21 +70,7 @@ void wireframeDisplayData::getPlugs(const MObject& node, bool getCol) {
 }
 MBoundingBox getBB(const MObject& node) {
     MStatus status;
-    /*
-    MPlug meshPlug = MPlug(node, wireframeDisplay::_inMesh);
-    MPlugArray plugs;
-    meshPlug.connectedTo(plugs, true, false, &status);
 
-    if (plugs.length() == 0) {
-            //MGlobal::displayError("Unable to rebind.  No bind mesh is connected.");
-    }
-    else {
-            this->inMesh = plugs[0].node();
-            // get the BB
-            MFnMesh tmpMesh(this->inMesh, &status);
-            this->theBoundingBox =tmpMesh.boundingBox(&status);
-    }
-    */
     MPlugArray plugs;
     MPlug c1Plug(node, wireframeDisplay::_boundingBoxMini);
     MPlug c2Plug(node, wireframeDisplay::_boundingBoxMaxi);
@@ -117,17 +87,9 @@ MBoundingBox getBB(const MObject& node) {
             if (MS::kSuccess != status) {
                 MGlobal::displayError("MFnDependencyNode meshObjDep(meshObj, &status);");
             }
-            /*
-            MPlug meshBB = meshObjDep.findPlug("boundingBox", false, &status);
-            if (MS::kSuccess != status) {
-                    MGlobal::displayError("meshObjDep.findPlug(boundingBox, false, &status)");
-            }
-            //MGlobal::displayInfo(meshBB.name());
-            */
 
             MPlug meshBBMI = meshObjDep.findPlug("boundingBoxMin", false);
             MPlug meshBBMX = meshObjDep.findPlug("boundingBoxMax", false);
-            // MGlobal::displayInfo(meshBBMI.name());
 
             MDGModifier dg;
             status = dg.connect(meshBBMI, c1Plug);
@@ -151,7 +113,6 @@ MBoundingBox getBB(const MObject& node) {
 }
 void wireframeDisplayData::get(const MObject& node) {
     MStatus status;
-    // MGlobal::displayInfo(MString("---- call wireframeDisplayData::get --- ") );
 
     // get the wireframe
     this->edgeVertices.clear();
@@ -168,18 +129,20 @@ void wireframeDisplayData::get(const MObject& node) {
         bool recomputeEdgeAssociation = false;
         int currentNbEdges = tmpMesh.numEdges();
         if (currentNbEdges != this->nbEdges) {  // if mesh is updated with more edges
-            MGlobal::displayInfo(MString("---- wireframeDisplayData::get - recompute edges : ") +
-                                 this->nbEdges + MString(" - ") + currentNbEdges);
+            MGlobal::displayInfo(
+                MString("---- wireframeDisplayData::get - recompute edges : ") + this->nbEdges +
+                MString(" - ") + currentNbEdges
+            );
 
             this->edgeVerticesIndices.clear();
             recomputeEdgeAssociation = true;
             this->nbEdges = currentNbEdges;
         }
         int smoothLevel = 0;
-        if (this->enableSmooth)
+        if (this->enableSmooth) {
             smoothLevel = tmpMesh.findPlug("displaySmoothMesh", false, &status).asInt();
+        }
         if (smoothLevel > 0) {
-            // options.setDivisions(smoothLevel);
             options.setDivisions(1);
             options.setSmoothUVs(false);
             // https://github.com/haggi/OpenMaya/blob/master/src/common/cpp/mayaObject.cpp
@@ -214,48 +177,28 @@ void wireframeDisplayData::get(const MObject& node) {
                 }
             }
         }
-        if (recomputeEdgeAssociation) this->arrayLength = this->edgeVerticesIndices.length();
+        if (recomputeEdgeAssociation) {
+            this->arrayLength = this->edgeVerticesIndices.length();
+        }
         this->edgeVertices.setLength(this->arrayLength);
         for (unsigned int i = 0; i < this->arrayLength; ++i) {
             int ptIndex = this->edgeVerticesIndices[i];
-            // this->edgeVertices.append(MPoint(this->mayaRawPoints[ptIndex * 3],
-            // this->mayaRawPoints[ptIndex * 3 + 1], this->mayaRawPoints[ptIndex * 3 + 2]));
-            // this->edgeVertices.set( MPoint(this->mayaRawPoints[ptIndex * 3],
-            // this->mayaRawPoints[ptIndex * 3 + 1], this->mayaRawPoints[ptIndex * 3 + 2]), i);
-            float element[4] = {this->mayaRawPoints[ptIndex * 3],
-                                this->mayaRawPoints[ptIndex * 3 + 1],
-                                this->mayaRawPoints[ptIndex * 3 + 2], 0};
+            float element[4] = {
+                this->mayaRawPoints[ptIndex * 3], this->mayaRawPoints[ptIndex * 3 + 1],
+                this->mayaRawPoints[ptIndex * 3 + 2], 0
+            };
             this->edgeVertices.set(element, i);
         }
     }
 }
 
-MStatus wireframeDisplay::compute(const MPlug& plug, MDataBlock& data) {
-    // READ IN ".inMesh" DATA:
-    /*
-    MDataHandle inMeshDataHandle = data.inputValue(_inMesh);
-    MObject inMesh = inMeshDataHandle.asMesh();
-    MDagPath dummyDagPath;
-    MFnMesh meshFn(dummyDagPath);
-    MItMeshEdge edgeIter(dummyDagPath);
-    if (inMesh != MObject::kNullObj) {
-            meshFn.setObject(inMesh);
-            edgeIter.reset(inMesh);
-    }
-
-    MPoint pt0, pt1;
-    for (; !edgeIter.isDone(); edgeIter.next()) {
-            pt0 = edgeIter.point(0);
-            pt1 = edgeIter.point(1);
-    }
-    */
-    return MS::kSuccess;
-}
+MStatus wireframeDisplay::compute(const MPlug& plug, MDataBlock& data) { return MS::kSuccess; }
 
 #ifdef MAYA_LEGACY_DISPLAY
 // called by legacy default viewport
-void wireframeDisplay::draw(M3dView& view, const MDagPath& path, M3dView::DisplayStyle style,
-                            M3dView::DisplayStatus status) {
+void wireframeDisplay::draw(
+    M3dView& view, const MDagPath& path, M3dView::DisplayStyle style, M3dView::DisplayStatus status
+) {
     wireframeDisplayData data;
     data.getPlugs(_self, true);
     data.get(_self);
@@ -264,11 +207,9 @@ void wireframeDisplay::draw(M3dView& view, const MDagPath& path, M3dView::Displa
 
     // Draw the wireframe
     glEnable(GL_BLEND);
-    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
     // prevent the quad from writing to the z buffer.
-    // glDepthFunc(GL_NEVER);
     glDepthMask(5);
     glPushMatrix();
 
@@ -288,8 +229,9 @@ void wireframeDisplay::draw(M3dView& view, const MDagPath& path, M3dView::Displa
     int indexPt;
     for (int i = 0; i < nbEdges; i += 2) {
         glVertex3f(data.edgeVertices[i].x, data.edgeVertices[i].y, data.edgeVertices[i].z);
-        glVertex3f(data.edgeVertices[i + 1].x, data.edgeVertices[i + 1].y,
-                   data.edgeVertices[i + 1].z);
+        glVertex3f(
+            data.edgeVertices[i + 1].x, data.edgeVertices[i + 1].y, data.edgeVertices[i + 1].z
+        );
     }
     glEnd();
     glLineWidth(1);
@@ -302,24 +244,14 @@ void wireframeDisplay::draw(M3dView& view, const MDagPath& path, M3dView::Displa
     glDepthMask(1);
     // restore the old openGL settings
     glPopAttrib();
-    // Draw the name of the wireframeDisplay
-    /*
-    view.setDrawColor( MColor( 0.1f, 0.8f, 0.8f, 1.0f ) );
-    view.drawText( MString("wireframeDisplay"), MPoint( 0.0, 0.0, 0.0 ), M3dView::kCenter );
-    */
 }
 #endif
 
 bool wireframeDisplay::isBounded() const { return true; }
 
 MBoundingBox wireframeDisplay::boundingBox() const {
-    // Get the size
-    //
     MObject thisNode = thisMObject();
-
     return getBB(_self);
-    // data.get(thisMObject(), _transformMatrix);
-    // return data.theBoundingBox;
 }
 
 void* wireframeDisplay::creator() { return new wireframeDisplay(); }
@@ -370,26 +302,23 @@ MHWRender::DrawAPI wireframeDisplayDrawOverride::supportedDrawAPIs() const {
     return (MHWRender::kOpenGL | MHWRender::kDirectX11 | MHWRender::kOpenGLCoreProfile);
 }
 
-bool wireframeDisplayDrawOverride::isBounded(const MDagPath& /*objPath*/,
-                                             const MDagPath& /*cameraPath*/) const {
+bool wireframeDisplayDrawOverride::
+    isBounded(const MDagPath& /*objPath*/, const MDagPath& /*cameraPath*/) const {
     return true;
 }
 
-MBoundingBox wireframeDisplayDrawOverride::boundingBox(const MDagPath& objPath,
-                                                       const MDagPath& cameraPath) const {
-    // wireframeDisplayData      data;
+MBoundingBox wireframeDisplayDrawOverride::boundingBox(
+    const MDagPath& objPath, const MDagPath& cameraPath
+) const {
     MObject node = objPath.node();
-    // data.getBB(node);
-    // return data.theBoundingBox;
     return getBB(node);
-
-    // return MBoundingBox (MPoint(-.5, -.5, -.5), MPoint(.5, .5, .5));
 }
 
 // Called by Maya each time the object needs to be drawn.
 MUserData* wireframeDisplayDrawOverride::prepareForDraw(
     const MDagPath& objPath, const MDagPath& cameraPath,
-    const MHWRender::MFrameContext& frameContext, MUserData* oldData) {
+    const MHWRender::MFrameContext& frameContext, MUserData* oldData
+) {
     // Any data needed from the Maya dependency graph must be retrieved and cached in this stage.
     // There is one cache data for each drawable instance, if it is not desirable to allow Maya to
     // handle data caching, simply return null in this method and ignore user data parameter in draw
@@ -409,7 +338,6 @@ MUserData* wireframeDisplayDrawOverride::prepareForDraw(
     // kLead
     data->displayStat = MHWRender::MGeometryUtilities::displayStatus(objPath);
     // http://help.autodesk.com/view/MAYAUL/2016/ENU/?guid=__cpp_ref_class_m3d_view_html
-    // data->displayStat = displayStat;
     data->fColor = MHWRender::MGeometryUtilities::wireframeColor(objPath);
     return data;
 }
@@ -417,10 +345,10 @@ MUserData* wireframeDisplayDrawOverride::prepareForDraw(
 // addUIDrawables() provides access to the MUIDrawManager, which can be used
 // to queue up operations for drawing simple UI elements such as lines, circles and
 // text. To enable addUIDrawables(), override hasUIDrawables() and make it return true.
-void wireframeDisplayDrawOverride::addUIDrawables(const MDagPath& objPath,
-                                                  MHWRender::MUIDrawManager& drawManager,
-                                                  const MHWRender::MFrameContext& frameContext,
-                                                  const MUserData* data) {
+void wireframeDisplayDrawOverride::addUIDrawables(
+    const MDagPath& objPath, MHWRender::MUIDrawManager& drawManager,
+    const MHWRender::MFrameContext& frameContext, const MUserData* data
+) {
     // Get data cached by prepareForDraw() for each drawable instance, then MUIDrawManager
     // can draw simple UI by these data.
     wireframeDisplayData* pLocatorData = (wireframeDisplayData*)data;
@@ -429,8 +357,6 @@ void wireframeDisplayDrawOverride::addUIDrawables(const MDagPath& objPath,
     }
 
     drawManager.beginDrawable(MHWRender::MUIDrawManager::kNonSelectable);  // so not selectable
-    // drawManager.beginDrawInXray();
-    // MColor color(1., 0., 0., .2);
     if (pLocatorData->displayStat == MHWRender::kLead) {
         MColor color(0., 1., 0., pLocatorData->transparency);
         drawManager.setColor(color);
@@ -438,35 +364,19 @@ void wireframeDisplayDrawOverride::addUIDrawables(const MDagPath& objPath,
         MColor color(1., 1., 1., pLocatorData->transparency);
         drawManager.setColor(color);
     } else {
-        // MColor color(pLocatorData->color[0], pLocatorData->color[1], pLocatorData->color[2],
-        // pLocatorData->color[3]);
-        MColor color(pLocatorData->fColor.r, pLocatorData->fColor.g, pLocatorData->fColor.b,
-                     pLocatorData->transparency);
+        MColor color(
+            pLocatorData->fColor.r, pLocatorData->fColor.g, pLocatorData->fColor.b,
+            pLocatorData->transparency
+        );
         drawManager.setColor(color);
     }
 
     drawManager.setLineWidth(pLocatorData->lineWidth);
     drawManager.setDepthPriority(5);
-    // drawManager.setPaintStyle ()
 
-    /*
-    if (frameContext.getDisplayStyle() & MHWRender::MFrameContext::kGouraudShaded) {
-            int nbTriangles = pLocatorData->fTriangleList.size();
-            for (int i = 0; i < nbTriangles; ++i) {
-                    drawManager.mesh(MHWRender::MUIDrawManager::kTriangles,
-    pLocatorData->fTriangleList[i]);
-            }
-    }
-
-    int nbLines = pLocatorData->fLineList.size();
-    for (int i = 0; i < nbLines; ++i) {
-            drawManager.mesh(MHWRender::MUIDrawManager::kLineStrip, pLocatorData->fLineList[i]);
-    }
-    */
     // Draw the wireframe
     drawManager.lineList(pLocatorData->edgeVertices, false);
 
-    // drawManager.endDrawInXray();
     drawManager.endDrawable();
 }
 
@@ -491,19 +401,7 @@ MStatus wireframeDisplay::initialize() {
     CHECK_MSTATUS(inMeshAttrFn.setWritable(true));
     CHECK_MSTATUS(inMeshAttrFn.setCached(false));
     CHECK_MSTATUS(addAttribute(_inMesh));
-    /*
-    _inputColor = nAttr.createColor("inputColor", "ico");
-    nAttr.setDefault(1.0, 1.0, 0.0);
-    nAttr.setKeyable(true);
-    nAttr.setStorable(true);
-    nAttr.setUsedAsColor(true);
-    nAttr.setReadable(true);
-    nAttr.setWritable(true);
-    nAttr.setChannelBox(false);
 
-    // add the color attribute to our node
-    stat = addAttribute(_inputColor);
-    */
     _inputAlpha = nAttr.create("inputAlpha", "ina", MFnNumericData::kFloat, 0.5);
     nAttr.setMin(0.0);
     nAttr.setMax(1.0);
